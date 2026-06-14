@@ -1,43 +1,56 @@
 /**
- * Recommendation Templates - Maps categories to recommended actions
+ * Recommendation Templates — maps categories + urgency to actionable next steps.
  */
 
 const actionTemplates = {
-  "Billing Issue": "Ask user to check billing portal.",
-  "Technical Problem": "Suggest user to restart their browser.",
-  "General Inquiry": "Respond with FAQ link.",
-  "Feature Request": "Ask user to check billing portal.",
-  "Unknown": "Review manually."
-}
+  'Billing Issue': {
+    base: 'Route to the billing team. Verify the customer\'s payment method and subscription status in the billing portal.',
+    highUrgency: 'ESCALATE IMMEDIATELY: Payment failure may be blocking account access — billing team should contact the customer within 1 hour.',
+  },
+  'Technical Problem': {
+    base: 'Route to technical support. Ask the customer for their browser/OS, exact error message, and steps to reproduce.',
+    highUrgency: 'ESCALATE IMMEDIATELY: Critical technical failure — assign to senior engineer and notify on-call team.',
+  },
+  'General Inquiry': {
+    base: 'Reply with a link to the relevant FAQ or help article. If the question is not covered, route to a support agent.',
+    highUrgency: null,
+  },
+  'Feature Request': {
+    base: 'Thank the customer for the suggestion and log it in the product feedback tracker for the PM team to review.',
+    highUrgency: null,
+  },
+  'Unknown': {
+    base: 'Could not auto-categorize. Route to a senior support agent for manual triage.',
+    highUrgency: 'ESCALATE: High urgency but unknown category — senior agent must review immediately.',
+  },
+};
 
 /**
- * Get recommended action for a given category
- * 
- * @param {string} category - The message category
- * @param {string} urgency - The urgency level
- * @returns {string} - Recommended next step
+ * Returns a recommended action string based on category and urgency level.
  */
 export function getRecommendedAction(category, urgency) {
-  return actionTemplates[category] || "No recommendation available."
+  const template = actionTemplates[category] ?? actionTemplates['Unknown'];
+  if (urgency === 'High' && template.highUrgency) {
+    return template.highUrgency;
+  }
+  return template.base;
 }
 
-/**
- * Get all available categories
- * 
- * @returns {string[]} - List of categories
- */
 export function getAvailableCategories() {
-  return Object.keys(actionTemplates)
+  return Object.keys(actionTemplates);
 }
 
 /**
- * Determines if message should be escalated
- * 
- * @param {string} category - The message category
- * @param {string} urgency - The urgency level
- * @param {string} message - The original message
- * @returns {boolean} - Whether to escalate
+ * Determines whether a message should be escalated to a senior agent.
+ * Escalation is driven by actual urgency signals, not message length.
  */
 export function shouldEscalate(category, urgency, message) {
-  return message.length > 100
+  if (urgency === 'High') return true;
+
+  const criticalKeywords = [
+    'outage', 'down', 'breach', 'data loss', 'cannot access',
+    'emergency', 'production', 'critical', 'hacked',
+  ];
+  const lower = message.toLowerCase();
+  return criticalKeywords.some(k => lower.includes(k));
 }
